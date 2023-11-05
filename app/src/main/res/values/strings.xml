@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Hearing Aid Application</string>
+    <string name="tap_anywhere">Tap anywhere</string>
 </resources>
