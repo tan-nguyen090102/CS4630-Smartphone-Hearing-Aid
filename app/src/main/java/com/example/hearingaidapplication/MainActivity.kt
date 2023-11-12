@@ -17,19 +17,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import com.example.hearingaidapplication.ui.theme.HearingAidApplicationTheme
 import com.github.squti.androidwaverecorder.WaveRecorder
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        /**
-         * This path points to application cache directory.
-         * you could change it based on your usage
-         */
-        //Path: Internal Storage/Android/data/com.example.hearingaidapplication/cache
-        val filePath:String = externalCacheDir?.absolutePath + "/audio.wav"
-        Toast.makeText(this, filePath, Toast.LENGTH_LONG).show()
-        val waveRecorder = WaveRecorder(filePath)
 
         ActivityCompat.requestPermissions(
             this,
@@ -51,18 +45,32 @@ class MainActivity : ComponentActivity() {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Button(onClick = {
-                        waveRecorder.startRecording()
+                        Toast.makeText(applicationContext, "Start recording", Toast.LENGTH_SHORT).show()
+                        var filePath = intervalRecording(500)
                     }) {
                         Text(text = "Start recording")
-                    }
-                    Button(onClick = {
-                        waveRecorder.stopRecording()
-                    }) {
-                        Text(text = "Stop recording")
                     }
                 }
             }
         }
+    }
+
+    //The function that record the audio and turn to wav file in a specific time interval. Return a filepath containing that audio file.
+    private fun intervalRecording(time: Long): String {
+        /**
+         * This path points to application cache directory.
+         * you could change it based on your usage
+         */
+        //Path: Internal Storage/Android/data/com.example.hearingaidapplication/cache
+        val filePath:String = externalCacheDir?.absolutePath + "/audio.wav"
+        val waveRecorder = WaveRecorder(filePath)
+
+        waveRecorder.startRecording()
+        GlobalScope.launch {
+            delay(time)
+            waveRecorder.stopRecording()
+        }
+        return filePath;
     }
 }
 
