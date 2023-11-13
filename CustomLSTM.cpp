@@ -4,13 +4,11 @@
 #include <iostream>
 #include <sndfile.h>
 #include <string>
-
-// Implementation based off https://www.kaggle.com/code/navjindervirdee/lstm-neural-network-from-scratch
-
-const int INPUT_SIZE = 5;
+const int INPUT_SIZE = 38;
 const int HIDDEN_SIZE = 8;
-const int NUM_LAYERS = 1;
-const int BATCH_SIZE = 2;
+const int NUM_LAYERS = 4;
+const int BATCH_SIZE = 1;
+const int NUM_SAMPLES = 100;
 
 // Struct representing a 2D array
 struct Array2D {
@@ -705,128 +703,156 @@ void free_LSTM_Working_Memory(LSTM_Working_Memory* wm)
     free(wm);
 }
 
-Array2D* forward(Array2D** input_sequence, Array2D* hidden_state, Array2D* cell_state, LSTM_weights* weights, LSTM_Working_Memory* wm)
+Array2D** forward(Array2D** input_sequence, Array2D** hidden_states, Array2D* cell_state, Array2D* prev_cell_state, LSTM_weights* weights, LSTM_Working_Memory* wm)
 {
-    for (int layer = 0; layer < NUM_LAYERS; layer++)
+    for (int sample = 0; sample < NUM_SAMPLES; sample++)
     {
-        // Get input times input weights
-        std::cout << std::endl << "Layer: " << layer << std::endl << std::endl;
+        std::cout << std::endl << "Sample: " << sample << std::endl << std::endl;
+        for (int layer = 0; layer < NUM_LAYERS; layer++)
+        {
+            // Get input times input weights
+            std::cout << std::endl << "Layer: " << layer << std::endl << std::endl;
 
-        std::cout << "Hidden state at start: " << std::endl << getArray2DContents(hidden_state) << std::endl;
-        std::cout << "Cell state at start: " << std::endl << getArray2DContents(cell_state) << std::endl;
+            if (sample > 0)
+                std::cout << "Hidden state at start: " << std::endl << getArray2DContents(hidden_states[sample-1]) << std::endl;
+            std::cout << "Cell state at start: " << std::endl << getArray2DContents(prev_cell_state) << std::endl;
 
-        //std::cout << getArray2DShape(weights->weight_ih[layer]) << std::endl;
-        //std::cout << getArray2DShape(input_sequence) << std::endl;
+            //std::cout << getArray2DShape(weights->weight_ih[layer]) << std::endl;
+            //std::cout << getArray2DShape(input_sequence) << std::endl;
 
-        if (layer == 0)
-            matmul(weights->weight_ih[layer],input_sequence[0], wm->w_times_input);
-        else
-            matmul(weights->weight_ih[layer],hidden_state, wm->w_times_input);
-        
-        std::cout << "W times input: " << getArray2DContents(wm->w_times_input) << std::endl;
 
-        verticalSlice(wm->w_times_input, 0, HIDDEN_SIZE, wm->inp_slice);
-        verticalSlice(wm->w_times_input, HIDDEN_SIZE, HIDDEN_SIZE, wm->forget_slice);
-        verticalSlice(wm->w_times_input, HIDDEN_SIZE * 2, HIDDEN_SIZE, wm->gate_slice);
-        verticalSlice(wm->w_times_input, HIDDEN_SIZE * 3, HIDDEN_SIZE, wm->output_slice);
+            // Do input times input weights and times previous hidden state
+            if (layer == 0)
+            {
+                // If we're on layer 0, use the input sequence
+                matmul(weights->weight_ih[layer],input_sequence[sample], wm->w_times_input);
+            }
+            else
+            {
+                matmul(weights->weight_ih[layer],hidden_states[sample], wm->w_times_input);
+                
+            }
 
-        //std::cout << "Input slice: " << getArray2DContents(wm->inp_slice) << std::endl;
+            if (sample == 0)
+            {
+                // If we're on sample 0, h_(t-1) is all zeros, so just fill the result with zeros
+                fillArray2D(wm->h_times_state, 0.0);
+            }
+            else
+            {
+                matmul(weights->weight_hh[layer],hidden_states[sample-1], wm->h_times_state);
+            }
+                
+            
+            std::cout << "W times input: " << getArray2DContents(wm->w_times_input) << std::endl;
+            std::cout << "H times state: " << getArray2DContents(wm->h_times_state) << std::endl;
 
-        // Get weights times hidden state
-        matmul(weights->weight_hh[layer],hidden_state, wm->h_times_state);
+            // Get the slices of the input times input weights
+            verticalSlice(wm->w_times_input, 0, HIDDEN_SIZE, wm->inp_slice);
+            verticalSlice(wm->w_times_input, HIDDEN_SIZE, HIDDEN_SIZE, wm->forget_slice);
+            verticalSlice(wm->w_times_input, HIDDEN_SIZE * 2, HIDDEN_SIZE, wm->gate_slice);
+            verticalSlice(wm->w_times_input, HIDDEN_SIZE * 3, HIDDEN_SIZE, wm->output_slice);
 
-        //std::cout << "Hidden weights: " << std::endl << getArray2DContents(weights->weight_hh[layer]) << std::endl;
-        //std::cout << "Hidden Sequence: " << std::endl << getArray2DContents(hidden_state) << std::endl;
+            //std::cout << "Input slice: " << getArray2DContents(wm->inp_slice) << std::endl;
 
-        verticalSlice(wm->h_times_state, 0, HIDDEN_SIZE, wm->h_inp_slice);
-        verticalSlice(wm->h_times_state, HIDDEN_SIZE, HIDDEN_SIZE, wm->h_forget_slice);
-        verticalSlice(wm->h_times_state, HIDDEN_SIZE * 2, HIDDEN_SIZE, wm->h_gate_slice);
-        verticalSlice(wm->h_times_state, HIDDEN_SIZE * 3, HIDDEN_SIZE, wm->h_output_slice);
+            //std::cout << "Hidden weights: " << std::endl << getArray2DContents(weights->weight_hh[layer]) << std::endl;
+            //std::cout << "Hidden Sequence: " << std::endl << getArray2DContents(hidden_state) << std::endl;
 
-        // Input gate
-        add_arrays2D(wm->inp_slice, weights->ibias_input[layer], wm->h_inp_slice, weights->hbias_input[layer], wm->input_gate);
-        std::cout << "Protosigmoid input: " << std::endl << getArray2DContents(wm->input_gate) << std::endl;
-        _sigmoid(wm->input_gate);
-        std::cout << "Input gate: " << std::endl << getArray2DContents(wm->input_gate) << std::endl;
+            verticalSlice(wm->h_times_state, 0, HIDDEN_SIZE, wm->h_inp_slice);
+            verticalSlice(wm->h_times_state, HIDDEN_SIZE, HIDDEN_SIZE, wm->h_forget_slice);
+            verticalSlice(wm->h_times_state, HIDDEN_SIZE * 2, HIDDEN_SIZE, wm->h_gate_slice);
+            verticalSlice(wm->h_times_state, HIDDEN_SIZE * 3, HIDDEN_SIZE, wm->h_output_slice);
 
-        
+            // Input gate
+            add_arrays2D(wm->inp_slice, weights->ibias_input[layer], wm->h_inp_slice, weights->hbias_input[layer], wm->input_gate);
+            std::cout << "Protosigmoid input: " << std::endl << getArray2DContents(wm->input_gate) << std::endl;
+            _sigmoid(wm->input_gate);
+            std::cout << "Input gate: " << std::endl << getArray2DContents(wm->input_gate) << std::endl;
 
-        // Forget gate
-        add_arrays2D(wm->forget_slice, weights->ibias_forget[layer], wm->h_forget_slice, weights->hbias_forget[layer], wm->forget_gate);
-        std::cout << "Protosigmoid forget: " << std::endl << getArray2DContents(wm->forget_gate) << std::endl;
-        _sigmoid(wm->forget_gate);
-        std::cout << "Forget gate: " << std::endl << getArray2DContents(wm->forget_gate) << std::endl;
+            
 
-        // Gate gate
-        add_arrays2D(wm->gate_slice, weights->ibias_gate[layer], wm->h_gate_slice, weights->hbias_gate[layer], wm->gate_gate);
-        std::cout << "Protosigmoid gate: " << std::endl << getArray2DContents(wm->gate_slice) << std::endl;
-        _tanh_activation(wm->gate_gate);
-        std::cout << "Gate gate: " << std::endl << getArray2DContents(wm->gate_gate) << std::endl;
+            // Forget gate
+            add_arrays2D(wm->forget_slice, weights->ibias_forget[layer], wm->h_forget_slice, weights->hbias_forget[layer], wm->forget_gate);
+            std::cout << "Protosigmoid forget: " << std::endl << getArray2DContents(wm->forget_gate) << std::endl;
+            _sigmoid(wm->forget_gate);
+            std::cout << "Forget gate: " << std::endl << getArray2DContents(wm->forget_gate) << std::endl;
 
-        // output gate
+            // Gate gate
+            add_arrays2D(wm->gate_slice, weights->ibias_gate[layer], wm->h_gate_slice, weights->hbias_gate[layer], wm->gate_gate);
+            std::cout << "Protosigmoid gate: " << std::endl << getArray2DContents(wm->gate_slice) << std::endl;
+            _tanh_activation(wm->gate_gate);
+            std::cout << "Gate gate: " << std::endl << getArray2DContents(wm->gate_gate) << std::endl;
 
-        add_arrays2D(wm->output_slice, weights->ibias_output[layer], wm->h_output_slice, weights->hbias_output[layer], wm->output_gate);
-        std::cout << "Protosigmoid output: " << std::endl << getArray2DContents(wm->output_gate) << std::endl;
-        _sigmoid(wm->output_gate);
-        std::cout << "Output gate: " << std::endl << getArray2DContents(wm->output_gate) << std::endl;
-        
-        // Calc new cell state
-        hadamard_product(wm->forget_gate, cell_state, wm->forget_times_cell);
-        hadamard_product(wm->input_gate, wm->gate_gate, wm->input_times_gate);
-        add_arrays2D(wm->forget_times_cell, wm->input_times_gate, cell_state);
+            // output gate
 
-        // Calc new hidden state
-        tanh_activation(cell_state, wm->tanh_cell);
-        hadamard_product(wm->output_gate, wm->tanh_cell, hidden_state);
+            add_arrays2D(wm->output_slice, weights->ibias_output[layer], wm->h_output_slice, weights->hbias_output[layer], wm->output_gate);
+            std::cout << "Protosigmoid output: " << std::endl << getArray2DContents(wm->output_gate) << std::endl;
+            _sigmoid(wm->output_gate);
+            std::cout << "Output gate: " << std::endl << getArray2DContents(wm->output_gate) << std::endl;
+            
+            // Calc new cell state
+            hadamard_product(wm->forget_gate, prev_cell_state, wm->forget_times_cell);
+            hadamard_product(wm->input_gate, wm->gate_gate, wm->input_times_gate);
+            add_arrays2D(wm->forget_times_cell, wm->input_times_gate, cell_state);
 
-        std::cout << "Hidden state: " << std::endl << getArray2DContents(hidden_state) << std::endl;
-        std::cout << "Cell state: " << std::endl << getArray2DContents(cell_state) << std::endl;
+            // Calc new hidden state
+            tanh_activation(cell_state, wm->tanh_cell);
+            hadamard_product(wm->output_gate, wm->tanh_cell, hidden_states[sample]);
+
+            std::cout << "Hidden state: " << std::endl << getArray2DContents(hidden_states[sample]) << std::endl;
+            std::cout << "Cell state: " << std::endl << getArray2DContents(cell_state) << std::endl;
+        }
+        // Move current cell state to previous cell state
+        Array2D* temp = prev_cell_state; // Just a pointer. No malloc or computation happening here.
+        prev_cell_state = cell_state;
+        cell_state = temp;
     }
-    return hidden_state;
+    
+    return hidden_states;
 }
 
 int main()
 {
-    Array2D** input_sequence = (Array2D**) malloc(NUM_LAYERS * sizeof(struct Array2D*));
+    Array2D** input_sequence = (Array2D**) malloc(NUM_SAMPLES * sizeof(struct Array2D*));
 
-    for (int i = 0; i < NUM_LAYERS; i++)
+    for (int i = 0; i < NUM_SAMPLES; i++)
     {
         input_sequence[i] = createArray2D(INPUT_SIZE, BATCH_SIZE);
         
         fillArray2D(input_sequence[i], .1);
     }
-    /*Array2D** hidden_state = (Array2D**) malloc(NUM_LAYERS * sizeof(struct Array2D*));
-    Array2D** cell_state = (Array2D**) malloc(NUM_LAYERS * sizeof(struct Array2D*));
 
-    for (int i = 0; i < NUM_LAYERS; i++)
-    {
-        hidden_state[i] = createArray2D(BATCH_SIZE, HIDDEN_SIZE);
-        cell_state[i] = createArray2D(BATCH_SIZE, HIDDEN_SIZE);
-    }*/
-
-    Array2D* hidden_state = createArray2D(HIDDEN_SIZE, BATCH_SIZE);
     Array2D* cell_state = createArray2D(HIDDEN_SIZE, BATCH_SIZE);
+    Array2D* prev_cell_state = createArray2D(HIDDEN_SIZE, BATCH_SIZE);
 
-    //std::cout << getArray2DContents(input_sequence) << std::endl;
+    Array2D** hidden_states = (Array2D**) malloc(NUM_SAMPLES * sizeof(struct Array2D*));
 
+    for (int i = 0; i < NUM_SAMPLES; i++)
+    {
+        hidden_states[i] = createArray2D(HIDDEN_SIZE, BATCH_SIZE);
+        
+        fillArray2D(hidden_states[i], 0);
+    }
 
 
     LSTM_weights* weights = init_weights(.1);
 
     LSTM_Working_Memory* wm = init_LSTM_Working_Memory(0);
-    Array2D* out = forward(input_sequence, hidden_state, cell_state, weights, wm);
+    Array2D** out = forward(input_sequence, hidden_states, cell_state, prev_cell_state, weights, wm);
 
-    std::cout << "Output: " << std::endl << getArray2DContents(out) << std::endl;
+    std::cout << "Output: " << std::endl << std::endl;
 
     free_LSTM_weights(weights);
     free_LSTM_Working_Memory(wm);
 
-    for (int i = 0; i < NUM_LAYERS; i++)
+    for (int i = 0; i < NUM_SAMPLES; i++)
     {
+        std::cout << "Sample " << i  << ": " << std::endl << getArray2DContents(out[i]) << std::endl;
         freeArray2D(input_sequence[i]);
+        freeArray2D(hidden_states[i]);
     }
     
-    freeArray2D(hidden_state);
     freeArray2D(cell_state);
+    freeArray2D(prev_cell_state);
     
 }
