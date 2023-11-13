@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Button(onClick = {
                         Toast.makeText(applicationContext, "Start recording", Toast.LENGTH_SHORT).show()
-                        var filePath = intervalRecording(500)
+                        var filePath = intervalRecording(3000)
                     }) {
                         Text(text = "Start recording")
                     }
@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
             delay(time)
             waveRecorder.stopRecording()
         }
+        Toast.makeText(applicationContext, "Done recording", Toast.LENGTH_SHORT).show()
         return filePath;
     }
 }
