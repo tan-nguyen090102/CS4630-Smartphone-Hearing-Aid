@@ -34,25 +34,22 @@ class MainActivity : ComponentActivity() {
 
             override fun onStopTrackingTouch(seek: SeekBar) {
                 // write custom code for progress is stopped
-                Toast.makeText(this@MainActivity,
-                    "Progress is: " + seek.progress + "%",
-                    Toast.LENGTH_SHORT).show()
             }
         })
         waveformSeekBar = findViewById(R.id.waveformSeekBar)
 
         waveformSeekBar.apply {
             progress = 33.2F
-            waveWidth = 5F
-            waveGap = 2F
+            waveWidth = 10F
+            waveGap = 20F
             waveMinHeight = 5F
-            waveCornerRadius = 2F
+            waveCornerRadius = 10F
             waveGravity = WaveGravity.CENTER
             wavePaddingTop = 2
             wavePaddingBottom = 2
             wavePaddingRight = 2
             wavePaddingLeft = 2
-            waveBackgroundColor = Color.BLACK
+            waveBackgroundColor = Color.GRAY
             waveProgressColor = Color.BLUE
             markerTextColor = Color.MAGENTA
             markerTextPadding = 1F

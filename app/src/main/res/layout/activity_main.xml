@@ -12,7 +12,7 @@
         android:layout_margin="20dp"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:textSize="20sp"
+        android:textSize="30sp"
         android:gravity="center_horizontal"
         android:text="Hearing Aid Application"/>
 
@@ -59,7 +59,8 @@
         android:layout_width="match_parent"
         android:layout_height="110dp"
         android:max="100"
-        android:progress="50" />
+        android:progress="50"
+        />
 
     </RelativeLayout>
 
