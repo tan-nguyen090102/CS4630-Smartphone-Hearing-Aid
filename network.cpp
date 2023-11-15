@@ -5,7 +5,6 @@
 #include <iostream>
 #include <vector>
 #include <sndfile.h>
-#include "LSTM.h"
 
 //#include <torch/torch.h>
 
@@ -399,8 +398,114 @@ void conv1dTransposeChannels(double* input, double* weight, double* bias, double
             conv1dTranspose(current_inp_channel, current_weight, channel_out, input_size, kernel_size, output_size, stride);
         }
     }
+}
 
+Array2D** LSTM_forward(Array2D** input_sequence, Array2D** hidden_states, Array2D* cell_state, Array2D* prev_cell_state, LSTM_weights* weights, LSTM_Working_Memory* wm)
+{
+    for (int sample = 0; sample < LSTM_NUM_SAMPLES; sample++)
+    {
+        std::cout << std::endl << "Sample: " << sample << std::endl << std::endl;
+        for (int layer = 0; layer < LSTM_NUM_LAYERS; layer++)
+        {
+            // Get input times input weights
+            std::cout << std::endl << "Layer: " << layer << std::endl << std::endl;
+
+            if (sample > 0)
+                std::cout << "Hidden state at start: " << std::endl << getArray2DContents(hidden_states[sample-1]) << std::endl;
+            std::cout << "Cell state at start: " << std::endl << getArray2DContents(prev_cell_state) << std::endl;
+
+            //std::cout << getArray2DShape(weights->weight_ih[layer]) << std::endl;
+            //std::cout << getArray2DShape(input_sequence) << std::endl;
+
+
+            // Do input times input weights and times previous hidden state
+            if (layer == 0)
+            {
+                // If we're on layer 0, use the input sequence
+                matmul(weights->weight_ih[layer],input_sequence[sample], wm->w_times_input);
+            }
+            else
+            {
+                matmul(weights->weight_ih[layer],hidden_states[sample], wm->w_times_input);
+                
+            }
+
+            if (sample == 0)
+            {
+                // If we're on sample 0, h_(t-1) is all zeros, so just fill the result with zeros
+                fillArray2D(wm->h_times_state, 0.0);
+            }
+            else
+            {
+                matmul(weights->weight_hh[layer],hidden_states[sample-1], wm->h_times_state);
+            }
+                
+            
+            std::cout << "W times input: " << getArray2DContents(wm->w_times_input) << std::endl;
+            std::cout << "H times state: " << getArray2DContents(wm->h_times_state) << std::endl;
+
+            // Get the slices of the input times input weights
+            verticalSlice(wm->w_times_input, 0, LSTM_HIDDEN_SIZE, wm->inp_slice);
+            verticalSlice(wm->w_times_input, LSTM_HIDDEN_SIZE, LSTM_HIDDEN_SIZE, wm->forget_slice);
+            verticalSlice(wm->w_times_input, LSTM_HIDDEN_SIZE * 2, LSTM_HIDDEN_SIZE, wm->gate_slice);
+            verticalSlice(wm->w_times_input, LSTM_HIDDEN_SIZE * 3, LSTM_HIDDEN_SIZE, wm->output_slice);
+
+            //std::cout << "Input slice: " << getArray2DContents(wm->inp_slice) << std::endl;
+
+            //std::cout << "Hidden weights: " << std::endl << getArray2DContents(weights->weight_hh[layer]) << std::endl;
+            //std::cout << "Hidden Sequence: " << std::endl << getArray2DContents(hidden_state) << std::endl;
+
+            verticalSlice(wm->h_times_state, 0, LSTM_HIDDEN_SIZE, wm->h_inp_slice);
+            verticalSlice(wm->h_times_state, LSTM_HIDDEN_SIZE, LSTM_HIDDEN_SIZE, wm->h_forget_slice);
+            verticalSlice(wm->h_times_state, LSTM_HIDDEN_SIZE * 2, LSTM_HIDDEN_SIZE, wm->h_gate_slice);
+            verticalSlice(wm->h_times_state, LSTM_HIDDEN_SIZE * 3, LSTM_HIDDEN_SIZE, wm->h_output_slice);
+
+            // Input gate
+            add_arrays2D(wm->inp_slice, weights->ibias_input[layer], wm->h_inp_slice, weights->hbias_input[layer], wm->input_gate);
+            std::cout << "Protosigmoid input: " << std::endl << getArray2DContents(wm->input_gate) << std::endl;
+            _sigmoid(wm->input_gate);
+            std::cout << "Input gate: " << std::endl << getArray2DContents(wm->input_gate) << std::endl;
+
+            
+
+            // Forget gate
+            add_arrays2D(wm->forget_slice, weights->ibias_forget[layer], wm->h_forget_slice, weights->hbias_forget[layer], wm->forget_gate);
+            std::cout << "Protosigmoid forget: " << std::endl << getArray2DContents(wm->forget_gate) << std::endl;
+            _sigmoid(wm->forget_gate);
+            std::cout << "Forget gate: " << std::endl << getArray2DContents(wm->forget_gate) << std::endl;
+
+            // Gate gate
+            add_arrays2D(wm->gate_slice, weights->ibias_gate[layer], wm->h_gate_slice, weights->hbias_gate[layer], wm->gate_gate);
+            std::cout << "Protosigmoid gate: " << std::endl << getArray2DContents(wm->gate_slice) << std::endl;
+            _tanh_activation(wm->gate_gate);
+            std::cout << "Gate gate: " << std::endl << getArray2DContents(wm->gate_gate) << std::endl;
+
+            // output gate
+
+            add_arrays2D(wm->output_slice, weights->ibias_output[layer], wm->h_output_slice, weights->hbias_output[layer], wm->output_gate);
+            std::cout << "Protosigmoid output: " << std::endl << getArray2DContents(wm->output_gate) << std::endl;
+            _sigmoid(wm->output_gate);
+            std::cout << "Output gate: " << std::endl << getArray2DContents(wm->output_gate) << std::endl;
+            
+            // Calc new cell state
+            hadamard_product(wm->forget_gate, prev_cell_state, wm->forget_times_cell);
+            hadamard_product(wm->input_gate, wm->gate_gate, wm->input_times_gate);
+            add_arrays2D(wm->forget_times_cell, wm->input_times_gate, cell_state);
+
+            // Calc new hidden state
+            tanh_activation(cell_state, wm->tanh_cell);
+            hadamard_product(wm->output_gate, wm->tanh_cell, hidden_states[sample]);
+
+            std::cout << "Hidden state: " << std::endl << getArray2DContents(hidden_states[sample]) << std::endl;
+            std::cout << "Cell state: " << std::endl << getArray2DContents(cell_state) << std::endl;
+        }
+        // Move current cell state to previous cell state
+        Array2D* temp = prev_cell_state; // Just a pointer. No malloc or computation happening here.
+        prev_cell_state = cell_state;
+        cell_state = temp;
+    }
     
+    return hidden_states;
 }
 
 // Sets weights to constant values.
@@ -699,7 +804,7 @@ void randomizeWeights(double sparsity, DenoiserState* ds)
   initializeDenoiserState(ds, sparsity, -1);
 }
 
-void runDenoiser(double* inp, DenoiserState* ds, WorkingMemory* wm, double* output)
+void runDenoiser(double* inp, DenoiserState* ds, WorkingMemory* wm, double* output, LSTM_weights *lstmw, LSTM_Working_Memory *lstmwm)
 {
   // Run denoiser
   printf("Normalizing...\n");
@@ -858,8 +963,12 @@ void runDenoiser(double* inp, DenoiserState* ds, WorkingMemory* wm, double* outp
   }
 
   printf("Run LSTM\n");
-  // Currently not implemented. Need to implement this.
-  
+  // Copy input into LSTM input
+  /*for (int i=0; i < current_length * 32; i++) {
+    lstmwm->input_sequence->data[i] = wm->memory_grid2[i];
+  }
+  LSTM_forward(wm->memory_grid2, wm->lstm_hidden_states, wm->lstm_cell_state, wm->lstm_prev_cell_state, lstmw, lstmwm, current_length, LSTM_INPUT_SIZE, LSTM_HIDDEN_SIZE, LSTM_NUM_LAYERS, LSTM_NUM_SAMPLES);
+  */
 
   // Add skip4
   for (int i=0; i < current_length * 32; i++) {
@@ -894,13 +1003,9 @@ void runDenoiser(double* inp, DenoiserState* ds, WorkingMemory* wm, double* outp
   printf("Decoder.1.0\n");
   conv1dChannels(wm->memory_grid, ds->decoder_1_0_weight, ds->decoder_1_0_bias, wm->memory_grid2, current_length, current_length, 1, 16, 32, 1);
   
-  
-
   // encoder.1.1
   //printf("Decoder.1.1\n");
   GLU_split(wm->memory_grid2, current_length, 32, wm->memory_grid);
-
-  
 
   // decoder.1.2
   //printf("Decoder.1.2\n");
@@ -911,16 +1016,10 @@ void runDenoiser(double* inp, DenoiserState* ds, WorkingMemory* wm, double* outp
   //printf("Decoder.1.3\n");
   ReLU_(wm->memory_grid2, current_length * 8);
 
-  
-  
   // Add skip2
   for (int i=0; i < current_length * 8; i++) {
     wm->memory_grid2[i] += wm->skip_2[i];
   }
-
-  
-
-  
 
   // decoder.2.0
   printf("Decoder.2.0\n");
@@ -975,7 +1074,7 @@ void runDenoiser(double* inp, DenoiserState* ds, WorkingMemory* wm, double* outp
 }
 
 // Loads weights to fill the denoiser state.
-void loadWeightsFromDisk(char* filename, DenoiserState* ds)
+void loadWeightsFromDisk(char* filename, DenoiserState* ds, LSTM_weights *lstm_weights)
 {
   std::cout << "Loading weight file" << std::endl;
   FILE* file = fopen(filename, "r");
@@ -1069,6 +1168,57 @@ void loadWeightsFromDisk(char* filename, DenoiserState* ds)
     fscanf(file, "%lf", &ds->decoder_3_2_weight[i]);
   for (int i = 0; i < 1; i++)
     fscanf(file, "%lf", &ds->decoder_3_2_bias[i]);
+  
+  // Now load LSTM weights
+  for (int i = 0; i < LSTM_NUM_LAYERS; i++)
+  {
+    for (int j = 0; j < 4 * LSTM_HIDDEN_SIZE * LSTM_INPUT_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->weight_ih[i]->data[j]);
+    }
+    for (int j = 0; j < 4 * LSTM_HIDDEN_SIZE * LSTM_INPUT_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->weight_hh[i]->data[j]);
+    }
+
+    // Biases
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->ibias_input[i]->data[j]);
+    }
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->ibias_forget[i]->data[j]);
+    }
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->ibias_gate[i]->data[j]);
+    }
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->ibias_output[i]->data[j]);
+    }
+
+    // Hidden biases
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->hbias_input[i]->data[j]);
+    }
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->hbias_forget[i]->data[j]);
+    }
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->hbias_gate[i]->data[j]);
+    }
+    for (int j = 0; j < LSTM_HIDDEN_SIZE; j++)
+    {
+      fscanf(file, "%lf", &lstm_weights->hbias_output[i]->data[j]);
+    }
+    
+  }
+  
 
   fclose(file);
   
@@ -1164,7 +1314,8 @@ int main(int argc, char *argv[]) {
 
     DenoiserState *ds = (DenoiserState*) malloc(sizeof(DenoiserState));
     WorkingMemory *wm = (WorkingMemory*) malloc(sizeof(WorkingMemory));
-    //DenoiserStatePyTorch dspt = DenoiserStatePyTorch();
+    LSTM_weights *lstmw = init_weights(0);
+    LSTM_Working_Memory *lstmwm = init_LSTM_Working_Memory(0);
     mallocDenoiserState(ds);
     mallocWorkingMemory(wm);
 
@@ -1173,7 +1324,8 @@ int main(int argc, char *argv[]) {
     if (argc > 3)
     {
       std::cout << "Loading weights from disk" << std::endl;
-      loadWeightsFromDisk(argv[3], ds);
+      loadWeightsFromDisk(argv[3], ds, lstmw); 
+      //std::cout << "Bias: " << getArray2DContents(lstmw->weight_hh[0]) << std::endl;
     }
     else
     {
@@ -1187,7 +1339,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Starting" << std::endl;
     
-    runDenoiser(input, ds, wm, output);
+    runDenoiser(input, ds, wm, output, lstmw, lstmwm);
 
     std::cout << "End" << std::endl;
     
@@ -1240,71 +1392,6 @@ int main(int argc, char *argv[]) {
     free(input);
     free(kernel);
     free(output);
-  }
-  else if (operation == 2)
-  {
-
-    /* Read the four main parameters of the LSTM network  */
-
-    std::cout << "1" << std::endl;
-
-    double parameters[4];
-    parameters[0] = 1;
-    parameters[1] = 1;
-    parameters[2] = 2;
-    parameters[3] = 32;
-    int timesteps = 10;
-    int no_of_batches = 1;
-    int no_of_layers = 2;
-    int no_of_units = 32;
-
-	/* Read the weights of LSTM network and save them in a structure NN_model  */
-
-    struct LSTM_parameters NN_model;
-    char c1[50] = "weights.txt";
-
-    std::cout << "2" << std::endl;
-	  read_matrices(c1, &NN_model, no_of_units);
-    std::cout << "3" << std::endl;
-
-	/* Define the rest of the variables */
-
-    int count = 0; // counter to terminate computation
-	  double result; //intermidiate result from the neural network, our y value
-    double observation; //single observation added to the batch
-    int input_length = 100; // number of all the values passed in input.txt file
-    double *sequence = (double *)calloc(timesteps, timesteps * sizeof(double)); // dummy variable used for implementation
-    double *single_batch = (double *)calloc(timesteps, timesteps * sizeof(double)); // one batch of observations
-
-    double *input_sequence = (double *)calloc(input_length, input_length * sizeof(double));
-    double *total_output = (double *)calloc(input_length, input_length * sizeof(double));
-
-    std::cout << "4" << std::endl;
-    
-    for (int i=0; i < input_length; i++) {
-        input_sequence[i] = sin(i * .1);
-    }
-
-    std::cout << "5" << std::endl;
-
-    while (count < input_length )
-	  { // iterate over batches
-
-        observation = input_sequence[count];
-        std::cout << "6" << std::endl;
-        input_value_to_vector(observation, timesteps, single_batch, sequence); // append a single observation to the batch
-        std::cout << "7" << std::endl;
-        result = LSTM_algorithm_three_LSTM_layers (single_batch, parameters, NN_model); // run the implementation
-        std::cout << "8" << std::endl;
-        printf("The intermidiate result is:     %f\n", result);
-        total_output[count] = result;
-        count = count+1;
-        
-	  }
-
-    print_array(total_output, 0, 100, "Total output");
-
-    return 0;
   }
   return 0;
 }
