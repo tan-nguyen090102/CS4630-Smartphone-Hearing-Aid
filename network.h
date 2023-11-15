@@ -1209,6 +1209,7 @@ LSTM_Working_Memory* init_LSTM_Working_Memory(double init)
     for (int i = 0; i < LSTM_NUM_SAMPLES; i++)
     {
         wm->hidden_states[i] = createArray2D(LSTM_HIDDEN_SIZE, LSTM_BATCH_SIZE);
+        wm->input_sequence[i] = createArray2D(LSTM_INPUT_SIZE, LSTM_BATCH_SIZE);
         
         fillArray2D(wm->hidden_states[i], 0);
     }
