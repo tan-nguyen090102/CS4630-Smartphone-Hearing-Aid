@@ -1,36 +1,22 @@
 package com.example.hearingaidapplication
+import android.Manifest
 import android.graphics.Color
+import android.media.AudioFormat
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.widget.Button
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import com.masoudss.lib.SeekBarOnProgressChanged
-import java.io.File
+import androidx.core.app.ActivityCompat
+import com.github.squti.androidwaverecorder.WaveRecorder
 import com.masoudss.lib.WaveformSeekBar
 import com.masoudss.lib.utils.WaveGravity
-import android.Manifest
-import android.os.Handler
-import android.os.Looper
-import android.view.View
-import android.widget.Button
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.app.ActivityCompat
-import com.example.hearingaidapplication.ui.theme.HearingAidApplicationTheme
-import com.github.squti.androidwaverecorder.WaveRecorder
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Timer
 
 class MainActivity : ComponentActivity() {
 
@@ -41,6 +27,10 @@ class MainActivity : ComponentActivity() {
     private lateinit  var filePath: String
     private var handler: Handler = Handler(Looper.myLooper()!!)
     private lateinit var runnable: Runnable
+    /**Set up output wav file*/
+    private  val player by lazy {
+        AndroidAudioPlayer(applicationContext)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,13 +60,26 @@ class MainActivity : ComponentActivity() {
         //Path: Internal Storage/Android/data/com.example.hearingaidapplication/cache
         filePath = externalCacheDir?.absolutePath + "/audio.wav"
         val waveRecorder = WaveRecorder(filePath)
+
+        /**Config waveRecorder*/
+        waveRecorder.waveConfig.sampleRate = 16000
+        waveRecorder.waveConfig.channels = AudioFormat.CHANNEL_IN_MONO
+        waveRecorder.waveConfig.audioEncoding = AudioFormat.ENCODING_PCM_16BIT
+
         runnable = object : Runnable {
             override fun run() {
                 waveRecorder.startRecording()
-                waveRecorder.stopRecording()
-                handler.postDelayed(this, 500)
+                GlobalScope.launch {
+                    delay(200)
+                    waveRecorder.stopRecording()
+                    waveformSeekBar.setSampleFrom(filePath)
+                }
+
+                player.playSound(applicationContext, filePath)
+                handler.postDelayed(this, 300)
             }
         }
+
 
         /**Button Listeners*/
         startButton.setOnClickListener {
@@ -107,16 +110,17 @@ class MainActivity : ComponentActivity() {
 
         /**Set up waveform display*/
         waveformSeekBar.apply {
+            maxProgress = 30F
             progress = 33.2F
-            waveWidth = 10F
-            waveGap = 20F
+            waveWidth = 5F
+            waveGap = 5F
             waveMinHeight = 5F
             waveCornerRadius = 10F
             waveGravity = WaveGravity.CENTER
             wavePaddingTop = 2
             wavePaddingBottom = 2
-            wavePaddingRight = 2
-            wavePaddingLeft = 2
+            wavePaddingRight = 1
+            wavePaddingLeft = 1
             waveBackgroundColor = Color.GRAY
             waveProgressColor = Color.BLUE
             markerTextColor = Color.MAGENTA
@@ -125,19 +129,9 @@ class MainActivity : ComponentActivity() {
             markerWidth = 1F
             markerColor = Color.RED
         }
-        waveformSeekBar.setSampleFrom(filePath)
 
 
     }
-
-    /**Button listeners*/
-
-
-    //The function that record the audio and turn to wav file in a specific time interval. Return a filepath containing that audio file.
-    private fun intervalRecording(time: Long): String {
-        return filePath;
-    }
-
 }
 
 
