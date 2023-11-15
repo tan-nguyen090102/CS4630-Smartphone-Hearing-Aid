@@ -3,4 +3,10 @@
   <component name="ProjectRootManager" version="2" languageLevel="JDK_17" default="true" project-jdk-name="jbr-17" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/build/classes" />
   </component>
+<<<<<<< HEAD
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+=======
+>>>>>>> 53ae0cf (MainActivity with simple UI to record a .wav file)
 </project>
