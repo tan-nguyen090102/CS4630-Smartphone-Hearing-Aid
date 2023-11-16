@@ -2,6 +2,7 @@ package com.example.hearingaidapplication
 import android.Manifest
 import android.graphics.Color
 import android.media.AudioFormat
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -27,10 +28,9 @@ class MainActivity : ComponentActivity() {
     private lateinit  var filePath: String
     private var handler: Handler = Handler(Looper.myLooper()!!)
     private lateinit var runnable: Runnable
+
     /**Set up output wav file*/
-    private  val player by lazy {
-        AndroidAudioPlayer(applicationContext)
-    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,25 +61,44 @@ class MainActivity : ComponentActivity() {
         filePath = externalCacheDir?.absolutePath + "/audio.wav"
         val waveRecorder = WaveRecorder(filePath)
 
+        /**Set up player*/
+        val player = MediaPlayer()
+        player.isLooping = false
+
+        //applicationContext.cacheDir?.deleteRecursively()
+
         /**Config waveRecorder*/
-        waveRecorder.waveConfig.sampleRate = 16000
-        waveRecorder.waveConfig.channels = AudioFormat.CHANNEL_IN_MONO
+        waveRecorder.waveConfig.sampleRate = 44100
+        waveRecorder.waveConfig.channels = AudioFormat.CHANNEL_IN_STEREO
         waveRecorder.waveConfig.audioEncoding = AudioFormat.ENCODING_PCM_16BIT
 
+        /**Initial run*/
+        waveRecorder.startRecording()
+        //Threshold: 200 ms delay and 300 ms postDelay
+        GlobalScope.launch {
+            delay(500)
+            waveRecorder.stopRecording()
+        }
+
+        /**Looping run*/
         runnable = object : Runnable {
             override fun run() {
+                player.reset()
+                player.setDataSource(filePath)
+                player.prepare()
                 waveRecorder.startRecording()
+                //Threshold: 200 ms delay and 300 ms postDelay
+                //If we play at minimum threshold, the audio is unrecognizable.
+                //Threshold 1000 ms and 1100 ms respectively gives an okay experience though being delayed.
                 GlobalScope.launch {
-                    delay(200)
+                    delay(1000)
                     waveRecorder.stopRecording()
                     waveformSeekBar.setSampleFrom(filePath)
                 }
-
-                player.playSound(applicationContext, filePath)
-                handler.postDelayed(this, 300)
+                player.start()
+                handler.postDelayed(this, 1100)
             }
         }
-
 
         /**Button Listeners*/
         startButton.setOnClickListener {
@@ -95,8 +114,10 @@ class MainActivity : ComponentActivity() {
         /**Set up seek bar*/
         seek?.setOnSeekBarChangeListener(object :
             SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seek: SeekBar,
-                                           progress: Int, fromUser: Boolean) {
+            override fun onProgressChanged(
+                seek: SeekBar,
+                progress: Int, fromUser: Boolean
+            ) {
             }
 
             override fun onStartTrackingTouch(p0: SeekBar?) {
