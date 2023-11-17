@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
         waveRecorder.waveConfig.sampleRate = 44100
         waveRecorder.waveConfig.channels = AudioFormat.CHANNEL_IN_STEREO
         waveRecorder.waveConfig.audioEncoding = AudioFormat.ENCODING_PCM_16BIT
+        waveRecorder.noiseSuppressorActive = true
 
         /**Initial run*/
         waveRecorder.startRecording()
@@ -93,7 +94,8 @@ class MainActivity : ComponentActivity() {
                 GlobalScope.launch {
                     delay(1000)
                     waveRecorder.stopRecording()
-                    waveformSeekBar.setSampleFrom(filePath)
+                    //This function may delay the sound so commented for now.
+                    //waveformSeekBar.setSampleFrom(filePath)
                 }
                 player.start()
                 handler.postDelayed(this, 1100)
