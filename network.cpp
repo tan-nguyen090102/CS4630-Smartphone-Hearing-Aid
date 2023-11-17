@@ -404,14 +404,29 @@ Array2D** LSTM_forward(Array2D** input_sequence, Array2D** hidden_states, Array2
 {
     for (int sample = 0; sample < LSTM_NUM_SAMPLES; sample++)
     {
-        //std::cout << std::endl << "Sample: " << sample << std::endl << std::endl;
+        std::cout << "Sample: " << sample << std::endl;
         for (int layer = 0; layer < LSTM_NUM_LAYERS; layer++)
         {
-            // Get input times input weights
-            //std::cout << std::endl << "Layer: " << layer << std::endl << std::endl;
+          std::cout << "Layer: " << layer << std::endl;
+            // Reset working memory parts
+            fillArray2D(wm->w_times_input, 0.0);
+            fillArray2D(wm->h_times_state, 0.0);
+            fillArray2D(wm->inp_slice, 0.0);
+            fillArray2D(wm->forget_slice, 0.0);
+            fillArray2D(wm->gate_slice, 0.0);
+            fillArray2D(wm->output_slice, 0.0);
+            fillArray2D(wm->h_inp_slice, 0.0);
+            fillArray2D(wm->h_forget_slice, 0.0);
+            fillArray2D(wm->h_gate_slice, 0.0);
+            fillArray2D(wm->h_output_slice, 0.0);
+            fillArray2D(wm->input_gate, 0.0);
+            fillArray2D(wm->forget_gate, 0.0);
+            fillArray2D(wm->gate_gate, 0.0);
+            fillArray2D(wm->output_gate, 0.0);
+            fillArray2D(wm->forget_times_cell, 0.0);
+            fillArray2D(wm->input_times_gate, 0.0);
+            fillArray2D(wm->tanh_cell, 0.0);
 
-            //std::cout << getArray2DShape(weights->weight_ih[layer]) << std::endl;
-            //std::cout << getArray2DShape(input_sequence) << std::endl;
 
 
             // Do input times input weights and times previous hidden state
@@ -419,11 +434,11 @@ Array2D** LSTM_forward(Array2D** input_sequence, Array2D** hidden_states, Array2
             {
                 // If we're on layer 0, use the input sequence
                 matmul(weights->weight_ih[layer],input_sequence[sample], wm->w_times_input);
+                //std::cout << "w times input: " << std::endl << getArray2DContents(wm->w_times_input) << std::endl;
             }
             else
             {
                 matmul(weights->weight_ih[layer],hidden_states[sample], wm->w_times_input);
-                
             }
 
             if (sample == 0)
@@ -433,7 +448,12 @@ Array2D** LSTM_forward(Array2D** input_sequence, Array2D** hidden_states, Array2
             }
             else
             {
-                matmul(weights->weight_hh[layer],hidden_states[sample-1], wm->h_times_state);
+              //std::cout << "On layer " << layer << " sample " << sample << std::endl;
+              //std::cout << "Hidden state at start: " << std::endl << getArray2DContents(hidden_states[sample-1]) << std::endl;
+              //std::cout << "Multiplying by...: " << std::endl << getArray2DContents(weights->weight_hh[layer]) << std::endl;
+              matmul(weights->weight_hh[layer],hidden_states[sample-1], wm->h_times_state);
+              //std::cout << "Result: " << std::endl << getArray2DContents(wm->h_times_state) << std::endl;
+              //std::cout << "Size of result: " << getArray2DShape(wm->h_times_state) << std::endl;
             }
                 
             
@@ -455,6 +475,8 @@ Array2D** LSTM_forward(Array2D** input_sequence, Array2D** hidden_states, Array2
             verticalSlice(wm->h_times_state, LSTM_HIDDEN_SIZE, LSTM_HIDDEN_SIZE, wm->h_forget_slice);
             verticalSlice(wm->h_times_state, LSTM_HIDDEN_SIZE * 2, LSTM_HIDDEN_SIZE, wm->h_gate_slice);
             verticalSlice(wm->h_times_state, LSTM_HIDDEN_SIZE * 3, LSTM_HIDDEN_SIZE, wm->h_output_slice);
+
+            //std::cout << "HInput slice: " << getArray2DContents(wm->h_inp_slice) << std::endl;
 
             // Input gate
             add_arrays2D(wm->inp_slice, weights->ibias_input[layer], wm->h_inp_slice, weights->hbias_input[layer], wm->input_gate);
@@ -484,12 +506,16 @@ Array2D** LSTM_forward(Array2D** input_sequence, Array2D** hidden_states, Array2
             //std::cout << "Output gate: " << std::endl << getArray2DContents(wm->output_gate) << std::endl;
             
             // Calc new cell state
+            //std::cout << "Prev cell state: " << std::endl << getArray2DContents(prev_cell_state) << std::endl;
             hadamard_product(wm->forget_gate, prev_cell_state, wm->forget_times_cell);
             hadamard_product(wm->input_gate, wm->gate_gate, wm->input_times_gate);
+            fillArray2D(cell_state, 0.0);
             add_arrays2D(wm->forget_times_cell, wm->input_times_gate, cell_state);
+            //std::cout << "New cell state: " << std::endl << getArray2DContents(prev_cell_state) << std::endl;
 
             // Calc new hidden state
             tanh_activation(cell_state, wm->tanh_cell);
+            fillArray2D(hidden_states[sample], 0.0);
             hadamard_product(wm->output_gate, wm->tanh_cell, hidden_states[sample]);
 
             //std::cout << "Hidden state: " << std::endl << getArray2DContents(hidden_states[sample]) << std::endl;
@@ -499,6 +525,7 @@ Array2D** LSTM_forward(Array2D** input_sequence, Array2D** hidden_states, Array2
         Array2D* temp = prev_cell_state; // Just a pointer. No malloc or computation happening here.
         prev_cell_state = cell_state;
         cell_state = temp;
+        fillArray2D(cell_state, 0.0);
     }
     
     return hidden_states;
@@ -963,23 +990,48 @@ void runDenoiser(double* inp, DenoiserState* ds, WorkingMemory* wm, double* outp
   // It currently is [LSTM_num_samples x 1 x lstm_input_size]
   // Need it to be [LSTM_num_samples x lstm_input_size x 1]
   
-  for (int i = 0; i < 32; i++)
+  for (int j = 0; j < current_length; j++)
   {
-    for (int j=0; j < current_length; j++) 
+    for (int i=0; i < 32; i++) 
     {
-      set(lstmwm->input_sequence[j], i, 0, wm->memory_grid2[i + j * 32]);
+      set(lstmwm->input_sequence[j], i, 0, wm->memory_grid2[i * current_length + j]);
     }
   }
+
+  //std::cout << "Input sequence: " << std::endl << getArray2DContents(lstmwm->input_sequence[0]) << std::endl;
   
+  /*for (int j = 0; j < current_length; j++)
+  {
+    std::cout << "iteration " << j << std::endl;
+    for (int i = 0; i < 32; i++)
+    {
+      set(lstmwm->input_sequence[0], i, 0, wm->memory_grid2[i * current_length + j]);
+    }
+    Array2D** lstm_out = LSTM_forward(lstmwm->input_sequence, lstmwm->hidden_states, lstmwm->cell_state, lstmwm->prev_cell_state, lstmw, lstmwm);
+    fillArray2D(lstmwm->prev_cell_state, 0.0);
+    fillArray2D(lstmwm->cell_state, 0.0);
+    fillArray2D(lstmwm->hidden_states[0], 0.0);
+
+    for (int i = 0; i < 32; i++)
+    {
+      wm->memory_grid2[i * current_length + j] = get(lstm_out[0], i, 0);
+    }
+  }*/
   Array2D** lstm_out = LSTM_forward(lstmwm->input_sequence, lstmwm->hidden_states, lstmwm->cell_state, lstmwm->prev_cell_state, lstmw, lstmwm);
   
+  
+  //std::cout << "LSTM out t0: " << std::endl << getArray2DContents(lstm_out[0]) << std::endl;
+  //std::cout << "Hidden t1: " << std::endl << getArray2DContents(lstm_out[1]) << std::endl;
+  //std::cout << "Cell state: " << std::endl << getArray2DContents(lstmwm->cell_state) << std::endl;
+  //exit(1);
+
   // Now copy it back.
 
-  for (int i = 0; i < 32; i++)
+  for (int j = 0; j < current_length; j++)
   {
-    for (int j=0; j < current_length; j++) 
+    for (int i=0; i < 32; i++) 
     {
-      wm->memory_grid2[i + j * 32] = get(lstm_out[j], i, 0);
+      wm->memory_grid2[i * current_length + j] = get(lstm_out[0], i, 0);
     }
   }
 
@@ -1315,6 +1367,8 @@ int main(int argc, char *argv[]) {
       sfinfo = loadWavFile(argv[2], audioData);
       vectorToArray(audioData, input, INPUT_SIZE);
       std::cout << "Loaded wav file" << std::endl;
+      std::cout << "Sample rate: " << sfinfo.samplerate << std::endl;
+      std::cout << "Data: " << audioData[0] << std::endl;
     }
     else
     {
@@ -1351,10 +1405,26 @@ int main(int argc, char *argv[]) {
     initializeWorkingMemory(wm);
 
     std::cout << "Starting" << std::endl;
+    //print_array(input, 0, 100, "Input");
+
+    /*for (int i =0; i < LSTM_INPUT_SIZE; i++)
+    {
+      for (int j = 0; j < LSTM_NUM_SAMPLES; j++)
+      {
+        set(lstmwm->input_sequence[j], i, 0, sin(i * .1 + j));
+      }
+    }*/
+    //std::cout << getArray2DContents(lstmwm->input_sequence[1]) << std::endl;
+
+    //Array2D** lstm_out = LSTM_forward(lstmwm->input_sequence, lstmwm->hidden_states, lstmwm->cell_state, lstmwm->prev_cell_state, lstmw, lstmwm);
     
     runDenoiser(input, ds, wm, output, lstmw, lstmwm);
+    //std::cout << "Batch 0: " << getArray2DContents(lstm_out[0]) << std::endl;
+    //std::cout << "Batch 1: " << getArray2DContents(lstm_out[1]) << std::endl;
 
     std::cout << "End" << std::endl;
+
+    //print_array(output, 0, 100, "Output");
     
     freeDenoiserState(ds);
     freeWorkingMemory(wm);

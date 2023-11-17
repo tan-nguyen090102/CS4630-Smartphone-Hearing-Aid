@@ -5,7 +5,7 @@
 // Number of zero padding in up/down sampling
 const int ZEROS = 56;
 // Size of one batch of input
-const int INPUT_SIZE = 100000;
+const int INPUT_SIZE = 160000;
 const int HALF_INPUT_SIZE = ceil(INPUT_SIZE / 2.0);
 
 const int RESAMPLE = 4;
@@ -606,6 +606,15 @@ std::string getArray2DContents(struct Array2D* arr) {
             contents += std::to_string(arr->data[i * arr->y + j]) + " ";
         }
         contents += "\n";
+    }
+    return contents;
+}
+
+// Function to return array contents as a string
+std::string getVectorContents(struct Vector* arr) {
+    std::string contents = "";
+    for (int i = 0; i < arr->size; i++) {
+        contents += std::to_string(arr->data[i]) + " ";
     }
     return contents;
 }
