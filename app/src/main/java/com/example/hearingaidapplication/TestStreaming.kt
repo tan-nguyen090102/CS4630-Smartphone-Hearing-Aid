@@ -10,8 +10,10 @@ import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
 import android.os.Bundle
 import android.widget.Button
+import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ComponentActivity
 
@@ -23,10 +25,11 @@ class TestStreaming: ComponentActivity() {
     var record: AudioRecord? = null
     var track: AudioTrack? = null
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        volumeControlStream = AudioManager.MODE_IN_COMMUNICATION
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
 
         ActivityCompat.requestPermissions(
             this,
@@ -75,49 +78,65 @@ class TestStreaming: ComponentActivity() {
             Manifest.permission.RECORD_AUDIO
         ) != PackageManager.PERMISSION_GRANTED
 
-        val rate = 16000
+        val sampleRate = 44100
 
-        val min = AudioRecord.getMinBufferSize(
-            rate,
+        val minBufferSize = AudioRecord.getMinBufferSize(
+            sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
 
+        //Three sources: VOICE_RECOGNITION gives smoother speech and best low latency ((1000 * 128)/44100 ~ 2.9ms) with short array (128)
+        //                               but with background noise and a little bit echo when the audio is further and a little bit smaller volume.
+        //             VOICE_COMMUNICATION gives cut-off speech and bigger latency due to bigger short array (2048)
+        //                                  but no background noise and no echo.
+        //              MIC is a better version of VOICE_COMMUNICATION but very unreliable if the audio has a big variation in volume.
+
+
         record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            rate,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
-            min
+            minBufferSize
         )
+
+        if (NoiseSuppressor.isAvailable()) {
+            val suppressor = NoiseSuppressor.create(record!!.audioSessionId)
+            suppressor.enabled = true
+        }
 
         if (AcousticEchoCanceler.isAvailable()) {
             val echoCanceler = AcousticEchoCanceler.create(record!!.audioSessionId)
             echoCanceler.enabled = true
         }
+
         val maxJitter = AudioTrack.getMinBufferSize(
-            rate,
+            sampleRate,
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
 
         track = AudioTrack(
-            AudioManager.MODE_IN_COMMUNICATION,
-            rate,
+            AudioManager.STREAM_MUSIC,
+            sampleRate,
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
             maxJitter,
-            AudioTrack.PERFORMANCE_MODE_LOW_LATENCY
+            AudioTrack.PERFORMANCE_MODE_LOW_LATENCY,
+            record!!.audioSessionId
         )
     }
 
     private fun recordAndPlay() {
-        val lin = ShortArray(2048)
+        // The smaller the size of array, the less latency it is. This is the array for audio data in queue.
+        // Access this array when manipulating data. The data is in PCM ENCODING 16 bits audio, not .wav
+        val lin = ShortArray(128)
         var num = 0
         am!!.mode = AudioManager.MODE_IN_COMMUNICATION
         while (true) {
             if (isRecording) {
-                num = record!!.read(lin, 0, 2048)
+                num = record!!.read(lin, 0, 128)
                 track!!.write(lin, 0, num)
             }
         }
