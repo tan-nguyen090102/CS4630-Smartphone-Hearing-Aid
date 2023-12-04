@@ -152,9 +152,5 @@ class MainActivity : ComponentActivity() {
             markerWidth = 1F
             markerColor = Color.RED
         }
-
-
     }
 }
-
-
