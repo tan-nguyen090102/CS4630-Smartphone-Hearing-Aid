@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.Toast
@@ -20,6 +21,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+
+    // C++ Stuff
+    object Network {
+        external fun runDenoiser(): DoubleArray
+        init {
+            System.loadLibrary("network")
+        }
+    }
 
     //waveform seekbar: https://github.com/massoudss/waveformSeekBar
     //seekbar: https://www.geeksforgeeks.org/seekbar-in-kotlin/#
@@ -105,6 +115,7 @@ class MainActivity : ComponentActivity() {
         /**Button Listeners*/
         startButton.setOnClickListener {
             Toast.makeText(applicationContext, "Start recording", Toast.LENGTH_SHORT).show()
+            Log.d("Tag","Start button clicked")
             handler.post(runnable)
         }
 
