@@ -22,15 +22,6 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-
-    // C++ Stuff
-    object Network {
-        external fun runDenoiser(): DoubleArray
-        init {
-            System.loadLibrary("network")
-        }
-    }
-
     //waveform seekbar: https://github.com/massoudss/waveformSeekBar
     //seekbar: https://www.geeksforgeeks.org/seekbar-in-kotlin/#
 
