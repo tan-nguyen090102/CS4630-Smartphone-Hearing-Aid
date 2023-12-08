@@ -29,7 +29,6 @@ class TestStreaming: ComponentActivity() {
     var track: AudioTrack? = null
 
     val AUDIOFORMAT = AudioFormat.ENCODING_PCM_FLOAT
-    var noiserOn = false
 
     // C++ Stuff
     object Network {
@@ -47,17 +46,6 @@ class TestStreaming: ComponentActivity() {
         volumeControlStream = AudioManager.STREAM_VOICE_CALL
 
         Network.init()
-        /*val doub = DoubleArray(128)
-        for (i in 0..127)
-        {
-            doub[i] = sin(i * 0.1)
-            Log.d("CallingC", "Input value $i: " + doub[i])
-        }
-        val out = Network.runDenoiser(doub)
-        for (i in 0..127)
-        {
-            Log.d("CallingC", "Output value $i: " + out[i])
-        }*/
 
         ActivityCompat.requestPermissions(
             this,
@@ -173,29 +161,18 @@ class TestStreaming: ComponentActivity() {
             if (isRecording) {
                 num = record!!.read(lin, 0, 128, AudioRecord.READ_NON_BLOCKING)
 
-                if (noiserOn)
+                for (i in 0..127)
                 {
-                    // Denoiser run
-                    //Log.d("CallingC", "Raw input: " + lin[0] + " / " + lin[0].toDouble())
-                    for (i in 0..127)
-                    {
-                        doub[i] = (lin[i].toDouble())
-                    }
-                    //Log.d("CallingC", "Converted input: " + doub[0])
-
-                    // Run through the denoiser
-                    out = Network.runDenoiser(doub)
-
-                    //Log.d("CallingC", "Raw out: " + out[0])
-                    for (i in 0..127)
-                    {
-                        lin[i] = ((out[i]).toFloat()) * 0.1f + 0.9f * lin[i]
-                    }
-                    //Log.d("CallingC", "Converted out: " + lin[0])
-                    //Log.d("CallingC","Endian Order: " + ByteOrder.nativeOrder())
+                    doub[i] = (lin[i].toDouble())
                 }
 
+                // Run through the denoiser
+                out = Network.runDenoiser(doub)
 
+                for (i in 0..127)
+                {
+                    lin[i] = ((out[i]).toFloat()) * 0.1f + 0.9f * lin[i]
+                }
 
                 track!!.write(lin, 0, num, AudioTrack.WRITE_NON_BLOCKING)
             }
