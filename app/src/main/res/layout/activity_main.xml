@@ -7,6 +7,11 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:orientation="horizontal"
+        android:background="#80cf94">
     <TextView
         android:id="@+id/textView"
         android:layout_margin="20dp"
@@ -14,101 +19,50 @@
         android:layout_height="wrap_content"
         android:textSize="30sp"
         android:gravity="center_horizontal"
-        android:text="Hearing Aid Application"/>
-
-    <com.masoudss.lib.WaveformSeekBar
-        android:id="@+id/waveformSeekBar"
-        android:layout_width="match_parent"
-        android:layout_height="222dp"
-        app:marker_color="@color/black"
-        app:marker_text_color="@color/black"
-        app:marker_text_padding="2dp"
-        app:marker_text_size="12sp"
-        app:marker_width="1dp"
-        app:wave_background_color="@color/black"
-        app:wave_corner_radius="2dp"
-        app:wave_gap="2dp"
-        app:wave_gravity="center"
-        app:wave_max_progress="100"
-        app:wave_min_height="5dp"
-        app:wave_padding_Bottom="2dp"
-        app:wave_padding_left="2dp"
-        app:wave_padding_right="2dp"
-        app:wave_padding_top="2dp"
-        app:wave_progress="33"
-        app:wave_progress_color="@color/black"
-        app:wave_visible_progress="50"
-        app:wave_width="5dp" />
-
-
-    <RelativeLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
-
-        <TextView
-            android:id="@+id/textView2"
-            android:layout_margin="20dp"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:textSize="20sp"
-            android:gravity="center_horizontal"
-            android:text="Pitch"/>
-
-    <SeekBar
-        android:id="@+id/seekBar"
-        android:layout_width="match_parent"
-        android:layout_height="110dp"
-        android:max="100"
-        android:progress="50"
+        android:text="Smartphone Hearing Aid"
+        android:textColor="@color/white"
         />
-
-    </RelativeLayout>
-
-    <RelativeLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
+    </LinearLayout>
 
 
-    <TextView
-        android:id="@+id/textView3"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="20dp"
-        android:gravity="center_horizontal"
-        android:text="Frequency"
-        android:textSize="20sp" />
-
-    <SeekBar
-        android:id="@+id/seekBar2"
+    <ImageView
+        android:id="@+id/imageView"
         android:layout_width="match_parent"
-        android:layout_height="124dp"
-        android:max="100"
-        android:progress="50" />
-
-    </RelativeLayout>
+        android:layout_height="270dp"
+        android:src="@drawable/wave_1_" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="90dp"
+        android:layout_height="150dp"
         android:orientation="horizontal">
 
         <Button
             android:id="@+id/startButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_width="180dp"
+            android:layout_height="120dp"
+            android:layout_marginLeft="110dp"
+            android:layout_marginTop="20dp"
             android:text="Start"
-            />
+            android:textSize="25sp"
+            android:background="@drawable/custom_button"/>
 
-        <Button
-            android:id="@+id/stopButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Stop" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:orientation="horizontal">
+
+    <Button
+        android:id="@+id/stopButton"
+        android:layout_width="180dp"
+        android:layout_height="120dp"
+        android:layout_marginLeft="110dp"
+        android:layout_marginTop="20dp"
+        android:text="Stop"
+        android:textSize="25sp"
+        android:background="@drawable/custom_button2"/>
+
     </LinearLayout>
 
 

@@ -16,6 +16,7 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ComponentActivity
+import kotlin.math.roundToInt
 
 
 @SuppressLint("RestrictedApi")
@@ -24,7 +25,6 @@ class TestStreaming: ComponentActivity() {
     var am: AudioManager? = null
     var record: AudioRecord? = null
     var track: AudioTrack? = null
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -153,5 +153,6 @@ class TestStreaming: ComponentActivity() {
         track!!.pause()
         isRecording = false
     }
+
 
 }
