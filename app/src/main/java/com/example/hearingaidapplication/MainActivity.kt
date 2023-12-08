@@ -7,6 +7,7 @@ import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.Toast
@@ -107,6 +108,7 @@ class MainActivity : ComponentActivity() {
         /**Button Listeners*/
         startButton.setOnClickListener {
             Toast.makeText(applicationContext, "Start recording", Toast.LENGTH_SHORT).show()
+            Log.d("Tag","Start button clicked")
             handler.post(runnable)
         }
 
