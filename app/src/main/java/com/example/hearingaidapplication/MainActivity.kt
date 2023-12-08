@@ -2,6 +2,7 @@ package com.example.hearingaidapplication
 import android.Manifest
 import android.graphics.Color
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
@@ -28,6 +29,8 @@ class MainActivity : ComponentActivity() {
     private lateinit  var filePath: String
     private var handler: Handler = Handler(Looper.myLooper()!!)
     private lateinit var runnable: Runnable
+    private val audioManager: AudioManager? = null
+    private val testStreaming = TestStreaming()
 
     /**Set up output wav file*/
 
@@ -35,6 +38,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
         /**Set Permission*/
         ActivityCompat.requestPermissions(
@@ -50,8 +54,6 @@ class MainActivity : ComponentActivity() {
         )
 
         /**Find view*/
-        val seek = findViewById<SeekBar>(R.id.seekBar)
-        waveformSeekBar = findViewById(R.id.waveformSeekBar)
         val startButton = findViewById<Button>(R.id.startButton)
         val stopButton = findViewById<Button>(R.id.stopButton)
 
@@ -113,44 +115,5 @@ class MainActivity : ComponentActivity() {
             handler.removeCallbacks(runnable)
         }
 
-        /**Set up seek bar*/
-        seek?.setOnSeekBarChangeListener(object :
-            SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(
-                seek: SeekBar,
-                progress: Int, fromUser: Boolean
-            ) {
-            }
-
-            override fun onStartTrackingTouch(p0: SeekBar?) {
-                TODO("Not yet implemented")
-            }
-
-            override fun onStopTrackingTouch(p0: SeekBar?) {
-                TODO("Not yet implemented")
-            }
-        })
-
-        /**Set up waveform display*/
-        waveformSeekBar.apply {
-            maxProgress = 30F
-            progress = 33.2F
-            waveWidth = 5F
-            waveGap = 5F
-            waveMinHeight = 5F
-            waveCornerRadius = 10F
-            waveGravity = WaveGravity.CENTER
-            wavePaddingTop = 2
-            wavePaddingBottom = 2
-            wavePaddingRight = 1
-            wavePaddingLeft = 1
-            waveBackgroundColor = Color.GRAY
-            waveProgressColor = Color.BLUE
-            markerTextColor = Color.MAGENTA
-            markerTextPadding = 1F
-            markerTextSize = 12F
-            markerWidth = 1F
-            markerColor = Color.RED
-        }
     }
 }
